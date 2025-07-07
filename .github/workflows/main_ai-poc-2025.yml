@@ -1,4 +1,8 @@
-name: Build and deploy Python app to Azure Web App
+# Docs for the Azure Web Apps Deploy action: https://github.com/Azure/webapps-deploy
+# More GitHub Actions for Azure: https://github.com/Azure/actions
+# More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
+
+name: Build and deploy Python app to Azure Web App - AI-PoC-2025
 
 on:
   push:
@@ -9,12 +13,14 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read #This is required for actions/checkout
 
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Python version
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
           python-version: '3.9'
 
@@ -22,54 +28,52 @@ jobs:
         run: |
           python -m venv venv
           source venv/bin/activate
-          
+      
       - name: Install dependencies
-        run: |
-          source venv/bin/activate
-          python -m pip install --upgrade pip
-          # 基本パッケージを先にインストール
-          pip install streamlit==1.28.0
-          pip install pillow==9.0.0
-          pip install numpy==1.26.4
-          pip install transformers==4.40.0
-          pip install accelerate scipy psutil
-          # PyTorchを最後にCPU版でインストール
-          pip install torch==2.2.2 torchvision==0.17.2 --index-url https://download.pytorch.org/whl/cpu
+        run: pip install -r requirements.txt
+        
+      # Optional: Add step to run tests here (PyTest, Django test suites, etc.)
 
-      - name: Create deployment package
-        run: |
-          mkdir deployment
-          cp -r . deployment/
-          rm -rf deployment/venv
-          rm -rf deployment/.git
-          rm -rf deployment/.github
-          rm -rf deployment/model_cache
-          cd deployment && zip -r ../deployment.zip .
+      - name: Zip artifact for deployment
+        run: zip release.zip ./* -r
 
       - name: Upload artifact for deployment jobs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: python-app
-          path: deployment.zip
+          path: |
+            release.zip
+            !venv/
 
   deploy:
     runs-on: ubuntu-latest
     needs: build
-    environment:
-      name: 'Production'
-      url: ${{ steps.deploy-to-webapp.outputs.webapp-url }}
     
+    permissions:
+      id-token: write #This is required for requesting the JWT
+      contents: read #This is required for actions/checkout
+
     steps:
       - name: Download artifact from build job
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: python-app
 
+      - name: Unzip artifact for deployment
+        run: unzip release.zip
+
+      
+      - name: Login to Azure
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_9F4E40389B17415C9D687C4B6D3270A9 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_34D6790EC94D4821904BF7E3F8207785 }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_E9B8BC201EE2405A9A85C1D4531B8055 }}
+
       - name: 'Deploy to Azure Web App'
-        uses: azure/webapps-deploy@v2
+        uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'AI-PoC-2025'  # 実際のApp Service名に変更してください
+          app-name: 'AI-PoC-2025'
           slot-name: 'Production'
-          publish-profile: ${{ secrets.AZUREAPPSERVICE_PUBLISHPROFILE }}
-          package: deployment.zip
+          
