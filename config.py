@@ -13,12 +13,19 @@ APP_ICON = "📸"
 # 画像設定（Azureでは制限を厳しく）
 MAX_IMAGE_SIZE = (600, 400) if IS_AZURE else (800, 600)
 SUPPORTED_FORMATS = ['png', 'jpg', 'jpeg', 'gif', 'bmp']
-MAX_FILE_SIZE_MB = 5 if IS_AZURE else 10
+MAX_FILE_SIZE_MB = 3 if IS_AZURE else 10  # Azureでさらに制限
 
-# BLIPモデル設定（Azureでは軽量化）
-BLIP_MODEL = "Salesforce/blip-image-captioning-base"
-MAX_TOKENS = 30 if IS_AZURE else 50
-NUM_BEAMS = 3 if IS_AZURE else 5
+# モデル設定（Azure用に軽量化）
+if IS_AZURE:
+    # Azure環境では軽量モデル
+    MODEL_NAME = "microsoft/DialoGPT-medium"  # より軽量
+    MAX_TOKENS = 20
+    NUM_BEAMS = 2
+else:
+    # ローカル環境では高性能モデル
+    MODEL_NAME = "Salesforce/blip-image-captioning-base"
+    MAX_TOKENS = 50
+    NUM_BEAMS = 5
 
 # 日本語翻訳辞書
 TRANSLATION_DICT = {
